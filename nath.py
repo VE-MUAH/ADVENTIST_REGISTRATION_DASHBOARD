@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -154,6 +155,31 @@ if st.session_state.is_admin:
         st.subheader("⬇️ Export Data")
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button("Download CSV", csv, "church_members.csv", "text/csv")
+
+        # --- Remove Member Section ---
+        st.markdown("---")
+        st.subheader("🗑️ Remove a Member")
+
+        if st.session_state.members:
+            remove_by = st.selectbox("Select how to remove", ["Name", "Gmail"])
+
+            if remove_by == "Name":
+                member_names = [member["Name"] for member in st.session_state.members]
+                selected_member = st.selectbox("Select Member by Name", member_names)
+            elif remove_by == "Gmail":
+                member_gmails = [member["Gmail"] for member in st.session_state.members]
+                selected_member = st.selectbox("Select Member by Gmail", member_gmails)
+
+            if st.button("Remove Selected Member"):
+                new_members = []
+                for member in st.session_state.members:
+                    if (remove_by == "Name" and member["Name"] != selected_member) or \
+                       (remove_by == "Gmail" and member["Gmail"] != selected_member):
+                        new_members.append(member)
+                st.session_state.members = new_members
+                st.success(f"✅ Member '{selected_member}' has been removed successfully.")
+        else:
+            st.info("ℹ️ No members to remove.")
 
     else:
         st.info("ℹ️ No members have registered yet.")
