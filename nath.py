@@ -346,7 +346,7 @@ if st.session_state.is_admin:
                 with col1:
                     if st.button(f"✏️ Edit {member['Name']}", key=f"edit_{idx}"):
                         st.session_state.edit_index = idx
-                        st.experimental_rerun()
+                        st.rerun()
 
                 with col2:
                     if st.button(f"🗑️ Remove {member['Name']}", key=f"remove_{idx}"):
