@@ -187,6 +187,7 @@
 
 
 
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -198,7 +199,7 @@ import os
 
 # ---- Settings ----
 ADMIN_PASSWORD = "Akwasiwusu"
-DATABASE_FILE = "members.csv"  # This is the CSV file to store registrations
+DATABASE_FILE = "members.csv"  # CSV file to store registrations
 
 # ---- Email Sending Setup ----
 SENDER_EMAIL = "vicentiaemuah21@gmail.com"  
@@ -250,6 +251,9 @@ if 'members' not in st.session_state:
 if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
 
+if 'edit_index' not in st.session_state:
+    st.session_state.edit_index = None
+
 # ---- Page Setup ----
 st.set_page_config(page_title="Adventist Church Membership Registration System", layout="centered")
 
@@ -259,14 +263,20 @@ st.title("⛪ Adventist Church Membership Registration System")
 
 # ---- Sidebar for Admin Login ----
 with st.sidebar:
-    st.markdown("### 🔒 Admin Login")
-    password = st.text_input("Enter Admin Password", type="password")
-    if st.button("Login as Admin"):
-        if password == ADMIN_PASSWORD:
-            st.session_state.is_admin = True
-            st.success("✅ Admin access granted!")
-        else:
-            st.error("❌ Incorrect password.")
+    if not st.session_state.is_admin:
+        st.markdown("### 🔒 Admin Login")
+        password = st.text_input("Enter Admin Password", type="password")
+        if st.button("Login as Admin"):
+            if password == ADMIN_PASSWORD:
+                st.session_state.is_admin = True
+                st.success("✅ Admin access granted!")
+            else:
+                st.error("❌ Incorrect password.")
+    else:
+        if st.button("🚪 Logout"):
+            st.session_state.is_admin = False
+            st.success("✅ Logged out successfully!")
+            st.experimental_rerun()
 
 # ---- Main Content Area ----
 col1, col2 = st.columns([2, 130])
@@ -330,7 +340,55 @@ if st.session_state.is_admin:
 
     if not df.empty:
         st.subheader("👥 All Registered Members")
-        st.dataframe(df)
+
+        for i, member in df.iterrows():
+            member_info = f"{member['Name']} ({member['Gmail']}) - {member['Course']} Level {member['Level']}"
+            col1, col2, col3 = st.columns([5, 1, 1])
+            with col1:
+                st.write(member_info)
+            with col2:
+                if st.button(f"Remove {i}", key=f"remove_{i}"):
+                    st.session_state.members.pop(i)
+                    updated_df = pd.DataFrame(st.session_state.members)
+                    updated_df.to_csv(DATABASE_FILE, index=False)
+                    st.success(f"✅ Member '{member['Name']}' removed successfully!")
+                    st.experimental_rerun()
+            with col3:
+                if st.button(f"Edit {i}", key=f"edit_{i}"):
+                    st.session_state.edit_index = i
+                    st.experimental_rerun()
+
+        if st.session_state.edit_index is not None:
+            st.subheader("✏️ Edit Member Details")
+            member = st.session_state.members[st.session_state.edit_index]
+            with st.form("edit_form"):
+                name = st.text_input("Full Name", member['Name'])
+                student_id = st.text_input("Student ID", member['Student ID'])
+                index_number = st.text_input("Index Number", member['Index Number'])
+                phone = st.text_input("Phone Number", member['Phone Number'])
+                residence = st.text_input("Place of Residence", member['Residence'])
+                gmail = st.text_input("Gmail Address", member['Gmail'])
+                course = st.text_input("Course", member['Course'])
+                level = st.selectbox("Level", ["100", "200", "300", "400", "Graduate"], index=["100", "200", "300", "400", "Graduate"].index(member['Level']))
+                submitted_edit = st.form_submit_button("Save Changes")
+
+                if submitted_edit:
+                    st.session_state.members[st.session_state.edit_index] = {
+                        "Name": name,
+                        "Student ID": student_id,
+                        "Index Number": index_number,
+                        "Phone Number": phone,
+                        "Residence": residence,
+                        "Gmail": gmail,
+                        "Course": course,
+                        "Level": level,
+                        "Timestamp": member['Timestamp']  # Keep original timestamp
+                    }
+                    updated_df = pd.DataFrame(st.session_state.members)
+                    updated_df.to_csv(DATABASE_FILE, index=False)
+                    st.success(f"✅ Member '{name}' updated successfully!")
+                    st.session_state.edit_index = None
+                    st.experimental_rerun()
 
         st.subheader("📚 Grouped Members by Course and Level")
         grouped = df.groupby(['Course', 'Level'])
