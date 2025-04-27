@@ -362,21 +362,19 @@
 
 
 
-
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import sqlite3
 from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+import sqlite3  # <-- ADD THIS
 
 # ---- Settings ----
 ADMIN_PASSWORD = "Akwasiwusu"
-DATABASE_FILE = "members.db"  # SQLite database file
+DATABASE_FILE = "members.db"  # <-- Now using SQLite database file
 
 # ---- Email Sending Setup ----
 SENDER_EMAIL = "vicentiaemuah21@gmail.com"  
@@ -415,58 +413,35 @@ def send_confirmation_email(receiver_email, member_name):
     except Exception as e:
         print(f"Failed to send email: {e}")
 
-# ---- Database Setup ----
-def create_table():
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS members (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            student_id TEXT,
-            index_number TEXT,
-            phone TEXT,
-            residence TEXT,
-            gmail TEXT UNIQUE,
-            course TEXT,
-            level TEXT,
-            timestamp TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# ---- Initialize SQLite Database ----
+conn = sqlite3.connect(DATABASE_FILE)
+c = conn.cursor()
+c.execute('''
+    CREATE TABLE IF NOT EXISTS members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        student_id TEXT,
+        index_number TEXT,
+        phone TEXT,
+        residence TEXT,
+        gmail TEXT UNIQUE,
+        course TEXT,
+        level TEXT,
+        timestamp TEXT
+    )
+''')
+conn.commit()
 
-def insert_member(member):
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    c.execute('''
-        INSERT INTO members (name, student_id, index_number, phone, residence, gmail, course, level, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        member['Name'], member['Student ID'], member['Index Number'], member['Phone Number'],
-        member['Residence'], member['Gmail'], member['Course'], member['Level'], member['Timestamp']
-    ))
-    conn.commit()
-    conn.close()
-
-def get_all_members():
-    conn = sqlite3.connect(DATABASE_FILE)
-    df = pd.read_sql_query("SELECT * FROM members", conn)
-    conn.close()
-    return df
-
-def gmail_exists(gmail):
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM members WHERE gmail = ?", (gmail,))
-    exists = c.fetchone()[0] > 0
-    conn.close()
-    return exists
-
-# Create table if not exists
-create_table()
+# ---- Load Existing Members ----
+c.execute("SELECT name, student_id, index_number, phone, residence, gmail, course, level, timestamp FROM members")
+rows = c.fetchall()
+columns = ["Name", "Student ID", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"]
+df_members = pd.DataFrame(rows, columns=columns)
 
 # ---- Session Setup ----
+if 'members' not in st.session_state:
+    st.session_state.members = df_members.to_dict('records')
+
 if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
 
@@ -491,7 +466,7 @@ with st.sidebar:
 # ---- Main Content Area ----
 col1, col2 = st.columns([2, 130])
 
-# ---- Member Registration Form ----
+# ---- Member Registration Form in the second column ----
 with col2:
     st.markdown("### 📝 Register Here")
     with st.form("member_form"):
@@ -506,10 +481,12 @@ with col2:
 
         submitted = st.form_submit_button("Submit")
 
+        registered_gmails = [m['Gmail'] for m in st.session_state.members]
+
         if submitted:
             if not all([name, student_id, index_number, phone, residence, gmail, course, level]):
                 st.warning("⚠️ Please complete all fields.")
-            elif gmail_exists(gmail):
+            elif gmail in registered_gmails:
                 st.error("🔁 You have already registered with this Gmail.")
             else:
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -524,9 +501,16 @@ with col2:
                     "Level": level,
                     "Timestamp": timestamp
                 }
-                insert_member(new_member)
+                st.session_state.members.append(new_member)
                 st.success("✅ Submitted successfully. God bless you!")
                 st.balloons()
+
+                # Insert into SQLite
+                c.execute('''
+                    INSERT INTO members (name, student_id, index_number, phone, residence, gmail, course, level, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (name, student_id, index_number, phone, residence, gmail, course, level, timestamp))
+                conn.commit()
 
                 # Send Confirmation Email
                 send_confirmation_email(gmail, name)
@@ -536,7 +520,7 @@ if st.session_state.is_admin:
     st.markdown("---")
     st.header("📋 Admin Dashboard")
 
-    df = get_all_members()
+    df = pd.DataFrame(st.session_state.members)
 
     search_query = st.text_input("🔍 Search Members", "")
     if search_query:
@@ -547,7 +531,7 @@ if st.session_state.is_admin:
         st.dataframe(df)
 
         st.subheader("📚 Grouped Members by Course and Level")
-        grouped = df.groupby(['course', 'level'])
+        grouped = df.groupby(['Course', 'Level'])
         for (course, level), group in grouped:
             st.markdown(f"### 📘 {course} - Level {level}")
             st.dataframe(group.reset_index(drop=True))
@@ -556,13 +540,13 @@ if st.session_state.is_admin:
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("**📌 Members per Course**")
-            st.dataframe(df['course'].value_counts())
+            st.dataframe(df['Course'].value_counts())
         with col2:
             st.markdown("**🎓 Members per Level**")
-            st.dataframe(df['level'].value_counts())
+            st.dataframe(df['Level'].value_counts())
 
         st.subheader("🥧 Pie Chart: Students by Level")
-        level_counts = df['level'].value_counts().reset_index()
+        level_counts = df['Level'].value_counts().reset_index()
         level_counts.columns = ['Level', 'Count']
         fig = px.pie(level_counts, names='Level', values='Count', title='Student Level Distribution')
         st.plotly_chart(fig)
