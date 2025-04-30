@@ -72,18 +72,14 @@ create_table()
 
 # ---- Add Member to SQLite Database ----
 def add_member_to_sqlite(member):
-    try:
-        conn = sqlite3.connect(DATABASE_SQLITE)
-        cursor = conn.cursor()
-        cursor.execute('''INSERT INTO members (name, index_number, phone, residence, gmail, course, level, timestamp) 
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
-                       (member["Name"], member["Index Number"], member["Phone Number"], 
-                        member["Residence"], member["Gmail"], member["Course"], member["Level"], member["Timestamp"]))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        print("Duplicate Gmail found. Entry not added to SQLite.")
-    finally:
-        conn.close()
+    conn = sqlite3.connect(DATABASE_SQLITE)
+    cursor = conn.cursor()
+    cursor.execute('''INSERT INTO members (name, index_number, phone, residence, gmail, course, level, timestamp) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
+                   (member["Name"],member["Index Number"], member["Phone Number"], 
+                    member["Residence"], member["Gmail"], member["Course"], member["Level"], member["Timestamp"]))
+    conn.commit()
+    conn.close()
 
 # ---- Load Members from SQLite Database ----
 def load_members_from_sqlite():
@@ -184,10 +180,10 @@ if st.session_state.is_admin:
     members_from_sqlite = load_members_from_sqlite()
 
     if members_from_sqlite:
-        df = pd.DataFrame(members_from_sqlite, columns=["ID", "Name", "Index Number", "Phone", "Residence", "Gmail", "Course", "Level", "Timestamp"])
-
-        # Rename to match the rest of your app structure
-        df.rename(columns={"Phone": "Phone Number"}, inplace=True)
+        # ✅ FIXED HERE: Now has 10 columns to match the data
+        df = pd.DataFrame(members_from_sqlite, columns=[
+            "ID", "Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"
+        ])
 
         search_query = st.text_input("🔍 Search Members", "")
         if search_query:
