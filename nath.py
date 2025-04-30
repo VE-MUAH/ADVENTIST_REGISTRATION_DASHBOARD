@@ -76,16 +76,8 @@ def add_member_to_sqlite(member):
     cursor = conn.cursor()
     cursor.execute('''INSERT INTO members (name, index_number, phone, residence, gmail, course, level, timestamp) 
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
-                   (member["Name"],member["Index Number"], member["Phone Number"], 
+                   (member["Name"], member["Index Number"], member["Phone Number"], 
                     member["Residence"], member["Gmail"], member["Course"], member["Level"], member["Timestamp"]))
-    conn.commit()
-    conn.close()
-
-# ---- Remove Member from SQLite Database ----
-def remove_member_from_sqlite(member):
-    conn = sqlite3.connect(DATABASE_SQLITE)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM members WHERE gmail = ?", (member["Gmail"],))
     conn.commit()
     conn.close()
 
@@ -100,7 +92,14 @@ def load_members_from_sqlite():
 
 # ---- Load Existing Members from CSV ----
 if os.path.exists(DATABASE_FILE):
-    df_members = pd.read_csv(DATABASE_FILE)
+    try:
+        df_members = pd.read_csv(DATABASE_FILE)
+        if df_members.empty:
+            st.warning("⚠️ The CSV file is empty. No data to display.")
+            df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+    except pd.errors.EmptyDataError:
+        st.warning("⚠️ The CSV file is empty. No data to display.")
+        df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 else:
     df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
@@ -149,7 +148,7 @@ with col2:
         registered_gmails = [m['Gmail'] for m in st.session_state.members]
 
         if submitted:
-            if not all([name,index_number, phone, residence, gmail, course, level]):
+            if not all([name, index_number, phone, residence, gmail, course, level]):
                 st.warning("⚠️ Please complete all fields.")
             elif gmail in registered_gmails:
                 st.error("🔁 You have already registered with this Gmail.")
@@ -228,7 +227,7 @@ if st.session_state.is_admin:
     else:
         st.info("ℹ️ No members have registered yet.")
 
-    # --- Remove Member Section ---
+    # --- Remove Member Section --- 
     st.markdown("---")
     st.subheader("🗑️ Remove a Member")
 
@@ -242,19 +241,13 @@ if st.session_state.is_admin:
             member_gmails = [member["Gmail"] for member in st.session_state.members]
             selected_member = st.selectbox("Select Member by Gmail", member_gmails)
 
-        if st.button("Remove Member"):
-            if remove_by == "Name":
-                member_to_remove = next((member for member in st.session_state.members if member["Name"] == selected_member), None)
-            elif remove_by == "Gmail":
-                member_to_remove = next((member for member in st.session_state.members if member["Gmail"] == selected_member), None)
-
-            if member_to_remove:
-                st.session_state.members.remove(member_to_remove)
-                remove_member_from_sqlite(member_to_remove)
-
-                updated_df = pd.DataFrame(st.session_state.members)
-                updated_df.to_csv(DATABASE_FILE, index=False)
-                st.success(f"✅ Member {selected_member} has been removed.")
-
-            else:
-                st.error("❌ No member found to remove.")
+        if st.button("Remove Selected Member"):
+            new_members = []
+            for member in st.session_state.members:
+                if (remove_by == "Name" and member["Name"] != selected_member) or \
+                   (remove_by == "Gmail" and member["Gmail"] != selected_member):
+                    new_members.append(member)
+            st.session_state.members = new_members
+            st.success(f"✅ Member '{selected_member}' has been removed successfully.")
+    else:
+        st.info("ℹ️ No members to remove.")
