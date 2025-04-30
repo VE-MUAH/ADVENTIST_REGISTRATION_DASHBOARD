@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -76,7 +77,7 @@ def add_member_to_sqlite(member):
     cursor = conn.cursor()
     cursor.execute('''INSERT INTO members (name, index_number, phone, residence, gmail, course, level, timestamp) 
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
-                   (member["Name"], member["Index Number"], member["Phone Number"], 
+                   (member["Name"],member["Index Number"], member["Phone Number"], 
                     member["Residence"], member["Gmail"], member["Course"], member["Level"], member["Timestamp"]))
     conn.commit()
     conn.close()
@@ -93,10 +94,8 @@ def load_members_from_sqlite():
 # ---- Load Existing Members from CSV ----
 if os.path.exists(DATABASE_FILE):
     df_members = pd.read_csv(DATABASE_FILE)
-    if "Student ID" in df_members.columns:
-        df_members.drop(columns=["Student ID"], inplace=True)
 else:
-    df_members = pd.DataFrame(columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+    df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
 # ---- Session Setup ----
 if 'members' not in st.session_state:
@@ -143,7 +142,7 @@ with col2:
         registered_gmails = [m['Gmail'] for m in st.session_state.members]
 
         if submitted:
-            if not all([name, index_number, phone, residence, gmail, course, level]):
+            if not all([name,index_number, phone, residence, gmail, course, level]):
                 st.warning("⚠️ Please complete all fields.")
             elif gmail in registered_gmails:
                 st.error("🔁 You have already registered with this Gmail.")
@@ -246,3 +245,4 @@ if st.session_state.is_admin:
             st.success(f"✅ Member '{selected_member}' has been removed successfully.")
     else:
         st.info("ℹ️ No members to remove.")
+     
