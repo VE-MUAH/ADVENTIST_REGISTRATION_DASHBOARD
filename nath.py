@@ -85,6 +85,9 @@ def load_members_from_sqlite():
     conn.close()
     return members
 
+# ---- Set Page Config ----
+st.set_page_config(page_title="Adventist Church Membership Registration System", layout="centered")
+
 # ---- Load CSV File (if exists) ----
 if os.path.exists(DATABASE_FILE):
     try:
@@ -111,7 +114,6 @@ if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
 
 # ---- App UI ----
-st.set_page_config(page_title="Adventist Church Membership Registration System", layout="centered")
 st.image("LOGO.jpg", width=800)
 st.title("⛪ Adventist Church Membership Registration System")
 
