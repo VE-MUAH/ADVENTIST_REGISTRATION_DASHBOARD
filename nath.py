@@ -91,7 +91,11 @@ def load_members_from_sqlite():
     cursor.execute("SELECT * FROM members")
     members = cursor.fetchall()
     conn.close()
-    return members
+
+    # Ensure the data has the same number of columns
+    if members:
+        return members
+    return []
 
 # ---- Load Existing Members from CSV ----
 if os.path.exists(DATABASE_FILE):
