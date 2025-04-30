@@ -101,12 +101,20 @@ def load_members_from_sqlite():
 if os.path.exists(DATABASE_FILE):
     try:
         df_members = pd.read_csv(DATABASE_FILE)
+        # Ensure that columns match what we expect
+        expected_columns = ["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"]
+        actual_columns = df_members.columns.tolist()
+
+        if len(actual_columns) == 9:  # If there are 9 columns, add the 'ID' column or other missing column to fix the issue
+            df_members['ID'] = range(1, len(df_members) + 1)  # Adding the ID column
+        elif len(actual_columns) != 9:
+            st.warning(f"⚠️ Data columns mismatch: Expected 9, but found {len(actual_columns)} columns.")
         if df_members.empty:
-            df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+            df_members = pd.DataFrame(columns=expected_columns)
     except pd.errors.EmptyDataError:
-        df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+        df_members = pd.DataFrame(columns=expected_columns)
 else:
-    df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+    df_members = pd.DataFrame(columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
 # ---- Session Setup ----
 if 'members' not in st.session_state:
