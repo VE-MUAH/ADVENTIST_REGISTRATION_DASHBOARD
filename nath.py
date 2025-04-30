@@ -206,6 +206,15 @@ if st.session_state.is_admin:
     # ---- Remove Member Section ----
     st.markdown("---")
     st.subheader("🗑️ Remove a Member")
+
+    def remove_member_from_sqlite(column, value):
+        conn = sqlite3.connect(DATABASE_SQLITE)
+        cursor = conn.cursor()
+        query = f"DELETE FROM members WHERE {column} = ?"
+        cursor.execute(query, (value,))
+        conn.commit()
+        conn.close()
+
     if st.session_state.members:
         remove_by = st.selectbox("Select how to remove", ["Name", "Gmail"])
         selected_member = None
@@ -221,6 +230,11 @@ if st.session_state.is_admin:
             new_members = [member for member in st.session_state.members if member[remove_by] != selected_member]
             st.session_state.members = new_members
             pd.DataFrame(new_members).to_csv(DATABASE_FILE, index=False)
+            
+            # Remove from SQLite
+            column_name_in_sql = "name" if remove_by == "Name" else "gmail"
+            remove_member_from_sqlite(column_name_in_sql, selected_member)
+
             st.success(f"✅ Member '{selected_member}' has been removed successfully.")
     else:
         st.info("ℹ️ No members to remove.")
