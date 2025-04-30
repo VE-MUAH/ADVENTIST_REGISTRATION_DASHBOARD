@@ -89,22 +89,18 @@ def load_members_from_sqlite():
 st.set_page_config(page_title="Adventist Church Membership Registration System", layout="centered")
 
 # ---- Load CSV File (if exists) ----
+df_members = pd.DataFrame(columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+
+# Only try to load CSV if it exists
 if os.path.exists(DATABASE_FILE):
     try:
         df_members = pd.read_csv(DATABASE_FILE)
         if df_members.empty:
             st.warning("⚠️ The CSV file is empty. No data to display.")
-        else:
-            # Continue processing with df_members
-            pass
     except pd.errors.EmptyDataError:
         st.warning("⚠️ The CSV file is empty or improperly formatted.")
-        df_members = pd.DataFrame(columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
     except Exception as e:
         st.error(f"An error occurred while reading the CSV file: {str(e)}")
-        df_members = pd.DataFrame(columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
-else:
-    df_members = pd.DataFrame(columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
 # ---- Session State ----
 if 'members' not in st.session_state:
