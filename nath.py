@@ -8,6 +8,9 @@ from email.mime.multipart import MIMEMultipart
 import os
 import sqlite3
 
+# ---- Page Setup ----
+st.set_page_config(page_title="Adventist Church Membership Registration System", layout="centered")
+
 # ---- Settings ----
 ADMIN_PASSWORD = "Akwasiwusu"
 DATABASE_FILE = "members.csv"  # This is the CSV file to store registrations
@@ -95,10 +98,8 @@ if os.path.exists(DATABASE_FILE):
     try:
         df_members = pd.read_csv(DATABASE_FILE)
         if df_members.empty:
-            st.warning("⚠️ The CSV file is empty. No data to display.")
             df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
     except pd.errors.EmptyDataError:
-        st.warning("⚠️ The CSV file is empty. No data to display.")
         df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 else:
     df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
@@ -109,13 +110,6 @@ if 'members' not in st.session_state:
 
 if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
-
-# ---- Page Setup ----
-st.set_page_config(page_title="Adventist Church Membership Registration System", layout="centered")
-
-# Logo and Title
-st.image("LOGO.jpg", width=800)
-st.title("⛪ Adventist Church Membership Registration System")
 
 # ---- Sidebar for Admin Login ----
 with st.sidebar:
