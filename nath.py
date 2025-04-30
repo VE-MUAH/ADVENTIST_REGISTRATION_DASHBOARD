@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -17,6 +16,7 @@ DATABASE_SQLITE = "members.db"  # SQLite Database
 # ---- Email Sending Setup ----
 SENDER_EMAIL = "vicentiaemuah21@gmail.com"  
 SENDER_PASSWORD = "VICENTIA2002"     
+
 
 def send_confirmation_email(receiver_email, member_name):
     subject = "Adventist Church Registration Successful 🎉"
@@ -58,8 +58,6 @@ def create_table():
     cursor.execute('''CREATE TABLE IF NOT EXISTS members (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         name TEXT,
-                        student_id TEXT,
-                        index_number TEXT,
                         phone TEXT,
                         residence TEXT,
                         gmail TEXT UNIQUE,
@@ -76,10 +74,10 @@ create_table()
 def add_member_to_sqlite(member):
     conn = sqlite3.connect(DATABASE_SQLITE)
     cursor = conn.cursor()
-    cursor.execute('''INSERT INTO members (name, student_id, index_number, phone, residence, gmail, course, level, timestamp) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
-                   (member["Name"], member["Student ID"], member["Index Number"], member["Phone Number"], 
-                    member["Residence"], member["Gmail"], member["Course"], member["Level"], member["Timestamp"]))
+    cursor.execute('''INSERT INTO members (name, phone, residence, gmail, course, level, timestamp) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?)''', 
+                   (member["Name"], member["Phone Number"], member["Residence"], 
+                    member["Gmail"], member["Course"], member["Level"], member["Timestamp"]))
     conn.commit()
     conn.close()
 
@@ -96,7 +94,7 @@ def load_members_from_sqlite():
 if os.path.exists(DATABASE_FILE):
     df_members = pd.read_csv(DATABASE_FILE)
 else:
-    df_members = pd.DataFrame(columns=["Name", "Student ID", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+    df_members = pd.DataFrame(columns=["Name", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
 # ---- Session Setup ----
 if 'members' not in st.session_state:
@@ -131,8 +129,6 @@ with col2:
     st.markdown("### 📝 Register Here")
     with st.form("member_form"):
         name = st.text_input("Full Name")
-        student_id = st.text_input("Student ID")
-        index_number = st.text_input("Index Number")
         phone = st.text_input("Phone Number")
         residence = st.text_input("Place of Residence")
         gmail = st.text_input("Gmail Address")
@@ -144,7 +140,7 @@ with col2:
         registered_gmails = [m['Gmail'] for m in st.session_state.members]
 
         if submitted:
-            if not all([name, student_id, index_number, phone, residence, gmail, course, level]):
+            if not all([name, phone, residence, gmail, course, level]):
                 st.warning("⚠️ Please complete all fields.")
             elif gmail in registered_gmails:
                 st.error("🔁 You have already registered with this Gmail.")
@@ -152,8 +148,6 @@ with col2:
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 new_member = {
                     "Name": name,
-                    "Student ID": student_id,
-                    "Index Number": index_number,
                     "Phone Number": phone,
                     "Residence": residence,
                     "Gmail": gmail,
@@ -184,7 +178,7 @@ if st.session_state.is_admin:
     members_from_sqlite = load_members_from_sqlite()
 
     if members_from_sqlite:
-        df = pd.DataFrame(members_from_sqlite, columns=["ID", "Name", "Student ID", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+        df = pd.DataFrame(members_from_sqlite, columns=["ID", "Name", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
         search_query = st.text_input("🔍 Search Members", "")
         if search_query:
@@ -224,7 +218,7 @@ if st.session_state.is_admin:
     else:
         st.info("ℹ️ No members have registered yet.")
 
-    # --- Remove Member Section ---
+    # --- Remove Member Section --- 
     st.markdown("---")
     st.subheader("🗑️ Remove a Member")
 
@@ -248,6 +242,3 @@ if st.session_state.is_admin:
             st.success(f"✅ Member '{selected_member}' has been removed successfully.")
     else:
         st.info("ℹ️ No members to remove.")
-     
-
-
