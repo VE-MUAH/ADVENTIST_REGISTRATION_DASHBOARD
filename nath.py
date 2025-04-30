@@ -112,9 +112,11 @@ if os.path.exists(DATABASE_FILE):
         if df_members.empty:
             df_members = pd.DataFrame(columns=expected_columns)
     except pd.errors.EmptyDataError:
+        expected_columns = ["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"]
         df_members = pd.DataFrame(columns=expected_columns)
 else:
-    df_members = pd.DataFrame(columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+    expected_columns = ["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"]
+    df_members = pd.DataFrame(columns=expected_columns)
 
 # ---- Session Setup ----
 if 'members' not in st.session_state:
@@ -235,26 +237,15 @@ if st.session_state.is_admin:
         st.info("ℹ️ No members have registered yet.")
 
     # --- Remove Member Section --- 
-    st.markdown("---")
-    st.subheader("🗑️ Remove a Member")
+    st.subheader("❌ Remove Member")
+    remove_member_name = st.text_input("Enter the Name of the Member to Remove")
+    if st.button("Remove Member"):
+        df_filtered = df[df['Name'] != remove_member_name]
+        updated_members = df_filtered.to_dict('records')
 
-    if st.session_state.members:
-        remove_by = st.selectbox("Select how to remove", ["Name", "Gmail"])
-
-        if remove_by == "Name":
-            member_names = [member["Name"] for member in st.session_state.members]
-            selected_member = st.selectbox("Select Member by Name", member_names)
-        elif remove_by == "Gmail":
-            member_gmails = [member["Gmail"] for member in st.session_state.members]
-            selected_member = st.selectbox("Select Member by Gmail", member_gmails)
-
-        if st.button("Remove Selected Member"):
-            new_members = []
-            for member in st.session_state.members:
-                if (remove_by == "Name" and member["Name"] != selected_member) or \
-                   (remove_by == "Gmail" and member["Gmail"] != selected_member):
-                    new_members.append(member)
-            st.session_state.members = new_members
-            st.success(f"✅ Member '{selected_member}' has been removed successfully.")
-    else:
-        st.info("ℹ️ No members to remove.")
+        # Update members
+        st.session_state.members = updated_members
+        updated_df = pd.DataFrame(updated_members)
+        updated_df.to_csv(DATABASE_FILE, index=False)
+        add_member_to_sqlite(updated_members)
+        st.success(f"✅ Member {remove_member_name} has been removed.")
