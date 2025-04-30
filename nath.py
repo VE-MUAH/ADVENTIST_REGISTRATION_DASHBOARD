@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -11,12 +10,12 @@ import sqlite3
 
 # ---- Settings ----
 ADMIN_PASSWORD = "Akwasiwusu"
-DATABASE_FILE = "members.csv"  # This is the CSV file to store registrations
-DATABASE_SQLITE = "members.db"  # SQLite Database
+DATABASE_FILE = "members.csv"  # CSV backup
+DATABASE_SQLITE = "members.db"  # SQLite DB
 
-# ---- Email Sending Setup ----
-SENDER_EMAIL = "vicentiaemuah21@gmail.com"  
-SENDER_PASSWORD = "VICENTIA2002"     
+# ---- Email Sending ----
+SENDER_EMAIL = "vicentiaemuah21@gmail.com"
+SENDER_PASSWORD = "VICENTIA2002"
 
 def send_confirmation_email(receiver_email, member_name):
     subject = "Adventist Church Registration Successful 🎉"
@@ -33,12 +32,10 @@ def send_confirmation_email(receiver_email, member_name):
     Kind Regards, 
     Adventist Church Membership Team
     """
-
     message = MIMEMultipart()
     message['From'] = SENDER_EMAIL
     message['To'] = receiver_email
     message['Subject'] = subject
-
     message.attach(MIMEText(body, 'plain'))
 
     try:
@@ -47,42 +44,42 @@ def send_confirmation_email(receiver_email, member_name):
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.sendmail(SENDER_EMAIL, receiver_email, message.as_string())
         server.quit()
-        print("Email sent successfully!")
     except Exception as e:
         print(f"Failed to send email: {e}")
 
-# ---- SQLite Database Setup ----
+# ---- SQLite Setup ----
 def create_table():
     conn = sqlite3.connect(DATABASE_SQLITE)
     cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS members (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT,
-                        index_number TEXT,
-                        phone TEXT,
-                        residence TEXT,
-                        gmail TEXT UNIQUE,
-                        course TEXT,
-                        level TEXT,
-                        timestamp TEXT)''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            index_number TEXT,
+            phone TEXT,
+            residence TEXT,
+            gmail TEXT UNIQUE,
+            course TEXT,
+            level TEXT,
+            timestamp TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
 
-# Call the function to create the table when the app starts
 create_table()
 
-# ---- Add Member to SQLite Database ----
 def add_member_to_sqlite(member):
     conn = sqlite3.connect(DATABASE_SQLITE)
     cursor = conn.cursor()
-    cursor.execute('''INSERT INTO members (name, index_number, phone, residence, gmail, course, level, timestamp) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
-                   (member["Name"],member["Index Number"], member["Phone Number"], 
-                    member["Residence"], member["Gmail"], member["Course"], member["Level"], member["Timestamp"]))
+    cursor.execute('''
+        INSERT INTO members (name, index_number, phone, residence, gmail, course, level, timestamp) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (member["Name"], member["Index Number"], member["Phone Number"], member["Residence"],
+          member["Gmail"], member["Course"], member["Level"], member["Timestamp"]))
     conn.commit()
     conn.close()
 
-# ---- Load Members from SQLite Database ----
 def load_members_from_sqlite():
     conn = sqlite3.connect(DATABASE_SQLITE)
     cursor = conn.cursor()
@@ -95,7 +92,7 @@ def load_members_from_sqlite():
 if os.path.exists(DATABASE_FILE):
     df_members = pd.read_csv(DATABASE_FILE)
 else:
-    df_members = pd.DataFrame(columns=["Name","Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+    df_members = pd.DataFrame(columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
 # ---- Session Setup ----
 if 'members' not in st.session_state:
@@ -104,10 +101,8 @@ if 'members' not in st.session_state:
 if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
 
-# ---- Page Setup ----
+# ---- Streamlit Page Setup ----
 st.set_page_config(page_title="Adventist Church Membership Registration System", layout="centered")
-
-# Logo and Title
 st.image("LOGO.jpg", width=800)
 st.title("⛪ Adventist Church Membership Registration System")
 
@@ -122,10 +117,9 @@ with st.sidebar:
         else:
             st.error("❌ Incorrect password.")
 
-# ---- Main Content Area ----
+# ---- Registration Form ----
 col1, col2 = st.columns([2, 130])
 
-# ---- Member Registration Form in the second column ----
 with col2:
     st.markdown("### 📝 Register Here")
     with st.form("member_form"):
@@ -136,13 +130,12 @@ with col2:
         gmail = st.text_input("Gmail Address")
         course = st.text_input("Course")
         level = st.selectbox("Level", ["", "100", "200", "300", "400", "Graduate"])
-
         submitted = st.form_submit_button("Submit")
 
         registered_gmails = [m['Gmail'] for m in st.session_state.members]
 
         if submitted:
-            if not all([name,index_number, phone, residence, gmail, course, level]):
+            if not all([name, index_number, phone, residence, gmail, course, level]):
                 st.warning("⚠️ Please complete all fields.")
             elif gmail in registered_gmails:
                 st.error("🔁 You have already registered with this Gmail.")
@@ -162,26 +155,22 @@ with col2:
                 st.success("✅ Submitted successfully. God bless you!")
                 st.balloons()
 
-                # Save to CSV
-                updated_df = pd.DataFrame(st.session_state.members)
-                updated_df.to_csv(DATABASE_FILE, index=False)
-
-                # Save to SQLite
+                pd.DataFrame(st.session_state.members).to_csv(DATABASE_FILE, index=False)
                 add_member_to_sqlite(new_member)
-
-                # Send Confirmation Email
                 send_confirmation_email(gmail, name)
 
-# ---- Admin Dashboard to Display Registered Members ----
+# ---- Admin Dashboard ----
 if st.session_state.is_admin:
     st.markdown("---")
     st.header("📋 Admin Dashboard")
 
-    # Load members from SQLite
     members_from_sqlite = load_members_from_sqlite()
 
     if members_from_sqlite:
-        df = pd.DataFrame(members_from_sqlite, columns=["ID", "Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+        # Match exact column names to SQL table field order
+        df = pd.DataFrame(members_from_sqlite, columns=[
+            "ID", "Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"
+        ])
 
         search_query = st.text_input("🔍 Search Members", "")
         if search_query:
@@ -215,34 +204,29 @@ if st.session_state.is_admin:
             st.subheader("⬇️ Export Data")
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button("Download CSV", csv, "church_members.csv", "text/csv")
-
         else:
             st.info("ℹ️ No members found with the search query.")
     else:
         st.info("ℹ️ No members have registered yet.")
 
-    # --- Remove Member Section ---
+    # ---- Remove Member Section ----
     st.markdown("---")
     st.subheader("🗑️ Remove a Member")
-
     if st.session_state.members:
         remove_by = st.selectbox("Select how to remove", ["Name", "Gmail"])
-
         if remove_by == "Name":
             member_names = [member["Name"] for member in st.session_state.members]
             selected_member = st.selectbox("Select Member by Name", member_names)
-        elif remove_by == "Gmail":
+        else:
             member_gmails = [member["Gmail"] for member in st.session_state.members]
             selected_member = st.selectbox("Select Member by Gmail", member_gmails)
 
         if st.button("Remove Selected Member"):
-            new_members = []
-            for member in st.session_state.members:
-                if (remove_by == "Name" and member["Name"] != selected_member) or \
-                   (remove_by == "Gmail" and member["Gmail"] != selected_member):
-                    new_members.append(member)
-            st.session_state.members = new_members
+            st.session_state.members = [
+                member for member in st.session_state.members
+                if not ((remove_by == "Name" and member["Name"] == selected_member) or
+                        (remove_by == "Gmail" and member["Gmail"] == selected_member))
+            ]
             st.success(f"✅ Member '{selected_member}' has been removed successfully.")
     else:
         st.info("ℹ️ No members to remove.")
-     
