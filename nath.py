@@ -181,6 +181,7 @@ if st.session_state.is_admin:
     members_from_sqlite = load_members_from_sqlite()
 
     if members_from_sqlite:
+        # Now we handle the correct number of columns
         df = pd.DataFrame(members_from_sqlite, columns=["ID", "Name",  "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
         search_query = st.text_input("🔍 Search Members", "")
