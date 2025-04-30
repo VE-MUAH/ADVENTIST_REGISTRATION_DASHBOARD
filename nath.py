@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -7,17 +8,15 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 import sqlite3
-import qrcode
-from io import BytesIO
 
 # ---- Settings ----
 ADMIN_PASSWORD = "Akwasiwusu"
-DATABASE_FILE = "members.csv"
-DATABASE_SQLITE = "members.db"
+DATABASE_FILE = "members.csv"  # CSV storage
+DATABASE_SQLITE = "members.db"  # SQLite Database
 
-# ---- Email Setup ----
-SENDER_EMAIL = "vicentiaemuah21@gmail.com"
-SENDER_PASSWORD = "VICENTIA2002"
+# ---- Email Sending Setup ----
+SENDER_EMAIL = "vicentiaemuah21@gmail.com"  
+SENDER_PASSWORD = "VICENTIA2002"     
 
 def send_confirmation_email(receiver_email, member_name):
     subject = "Adventist Church Registration Successful 🎉"
@@ -25,6 +24,8 @@ def send_confirmation_email(receiver_email, member_name):
     Dear {member_name},
 
     Thank you for registering with the Adventist Church Membership System!
+
+    We are happy to have you as part of our community. 
     God richly bless you! 🙏
 
     Date & Time of Registration: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -73,8 +74,7 @@ def add_member_to_sqlite(member):
     cursor.execute('''INSERT INTO members (name, index_number, phone, residence, gmail, course, level, timestamp) 
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
                    (member["Name"], member["Index Number"], member["Phone Number"], 
-                    member["Residence"], member["Gmail"], member["Course"], 
-                    member["Level"], member["Timestamp"]))
+                    member["Residence"], member["Gmail"], member["Course"], member["Level"], member["Timestamp"]))
     conn.commit()
     conn.close()
 
@@ -87,11 +87,13 @@ def load_members_from_sqlite():
     return members
 
 # ---- Load Existing CSV ----
-columns = ["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"]
-if os.path.exists(DATABASE_FILE):
-    df_members = pd.read_csv(DATABASE_FILE)
+if os.path.exists(DATABASE_FILE) and os.path.getsize(DATABASE_FILE) > 0:
+    try:
+        df_members = pd.read_csv(DATABASE_FILE)
+    except pd.errors.EmptyDataError:
+        df_members = pd.DataFrame(columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 else:
-    df_members = pd.DataFrame(columns=columns)
+    df_members = pd.DataFrame(columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
 # ---- Session State ----
 if 'members' not in st.session_state:
@@ -100,11 +102,13 @@ if 'members' not in st.session_state:
 if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
 
-st.set_page_config(page_title="Adventist Church Membership Registration", layout="centered")
+st.set_page_config(page_title="Adventist Church Membership Registration System", layout="centered")
+
+# ---- Page ----
 st.image("LOGO.jpg", width=800)
 st.title("⛪ Adventist Church Membership Registration System")
 
-# ---- Sidebar Admin Login ----
+# ---- Admin Login ----
 with st.sidebar:
     st.markdown("### 🔒 Admin Login")
     password = st.text_input("Enter Admin Password", type="password")
@@ -115,8 +119,9 @@ with st.sidebar:
         else:
             st.error("❌ Incorrect password.")
 
-# ---- Registration Form ----
 col1, col2 = st.columns([2, 130])
+
+# ---- Member Registration ----
 with col2:
     st.markdown("### 📝 Register Here")
     with st.form("member_form"):
@@ -148,23 +153,17 @@ with col2:
                     "Level": level,
                     "Timestamp": timestamp
                 }
-
-                # Generate QR Code for Member
-                qr_data = f"Name: {name}, Index: {index_number}, Phone: {phone}, Residence: {residence}, Gmail: {gmail}, Course: {course}, Level: {level}, Registered on: {timestamp}"
-                qr_img = qrcode.make(qr_data)
-                qr_img_path = "member_qr.png"
-                qr_img.save(qr_img_path)
-
-                # Display QR code to user
-                st.image(qr_img, caption="Your Membership QR Code")
-
                 st.session_state.members.append(new_member)
-                st.success("✅ Submitted successfully. God bless you! 🎉")
+                st.success("✅ Submitted successfully. God bless you!")
                 st.balloons()
 
-                # Save to CSV and DB
+                # Save to CSV
                 pd.DataFrame(st.session_state.members).to_csv(DATABASE_FILE, index=False)
+
+                # Save to SQLite
                 add_member_to_sqlite(new_member)
+
+                # Send email
                 send_confirmation_email(gmail, name)
 
 # ---- Admin Dashboard ----
@@ -172,6 +171,7 @@ if st.session_state.is_admin:
     st.markdown("---")
     st.header("📋 Admin Dashboard")
     members_from_sqlite = load_members_from_sqlite()
+    print(members_from_sqlite) 
 
     if members_from_sqlite:
         df = pd.DataFrame(members_from_sqlite, columns=["ID", "Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
@@ -184,18 +184,20 @@ if st.session_state.is_admin:
             st.subheader("👥 All Registered Members")
             st.dataframe(df)
 
-            st.subheader("📚 Grouped by Course and Level")
+            st.subheader("📚 Grouped Members by Course and Level")
             grouped = df.groupby(['Course', 'Level'])
             for (course, level), group in grouped:
                 st.markdown(f"### 📘 {course} - Level {level}")
                 st.dataframe(group.reset_index(drop=True))
 
-            st.subheader("📊 Summary Stats")
+            st.subheader("📊 Summary Statistics")
             col1, col2 = st.columns(2)
             with col1:
-                st.dataframe(df['Course'].value_counts().rename_axis("Course").reset_index(name="Count"))
+                st.markdown("**📌 Members per Course**")
+                st.dataframe(df['Course'].value_counts().reset_index().rename(columns={"index": "Course", "Course": "Count"}))
             with col2:
-                st.dataframe(df['Level'].value_counts().rename_axis("Level").reset_index(name="Count"))
+                st.markdown("**🎓 Members per Level**")
+                st.dataframe(df['Level'].value_counts().reset_index().rename(columns={"index": "Level", "Level": "Count"}))
 
             st.subheader("🥧 Pie Chart: Students by Level")
             level_counts = df['Level'].value_counts().reset_index()
@@ -203,7 +205,9 @@ if st.session_state.is_admin:
             fig = px.pie(level_counts, names='Level', values='Count', title='Student Level Distribution')
             st.plotly_chart(fig)
 
-            st.download_button("⬇️ Download CSV", df.to_csv(index=False).encode("utf-8"), "church_members.csv", "text/csv")
+            st.subheader("⬇️ Export Data")
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("Download CSV", csv, "church_members.csv", "text/csv")
         else:
             st.info("ℹ️ No members found with the search query.")
     else:
@@ -212,23 +216,41 @@ if st.session_state.is_admin:
     # ---- Remove Member ----
     st.markdown("---")
     st.subheader("🗑️ Remove a Member")
+
     if st.session_state.members:
         remove_by = st.selectbox("Select how to remove", ["Name", "Gmail"])
+        selected_member = None
+
         if remove_by == "Name":
-            member_names = [member["Name"] for member in st.session_state.members]
-            selected_member = st.selectbox("Select Member by Name", member_names)
-        else:
-            member_gmails = [member["Gmail"] for member in st.session_state.members]
-            selected_member = st.selectbox("Select Member by Gmail", member_gmails)
+            names = [member["Name"] for member in st.session_state.members]
+            selected_member = st.selectbox("Select Member by Name", names)
+        elif remove_by == "Gmail":
+            gmails = [member["Gmail"] for member in st.session_state.members]
+            selected_member = st.selectbox("Select Member by Gmail", gmails)
 
         if st.button("Remove Selected Member"):
-            new_members = []
-            for member in st.session_state.members:
-                if (remove_by == "Name" and member["Name"] != selected_member) or \
-                   (remove_by == "Gmail" and member["Gmail"] != selected_member):
-                    new_members.append(member)
+            # Remove from session state
+            new_members = [
+                m for m in st.session_state.members 
+                if not ((remove_by == "Name" and m["Name"] == selected_member) or
+                        (remove_by == "Gmail" and m["Gmail"] == selected_member))
+            ]
             st.session_state.members = new_members
+
+            # Remove from SQLite database
+            conn = sqlite3.connect(DATABASE_SQLITE)
+            cursor = conn.cursor()
+            if remove_by == "Name":
+                cursor.execute("DELETE FROM members WHERE name = ?", (selected_member,))
+            elif remove_by == "Gmail":
+                cursor.execute("DELETE FROM members WHERE gmail = ?", (selected_member,))
+            conn.commit()
+            conn.close()
+
+            # Update the CSV file
             pd.DataFrame(new_members).to_csv(DATABASE_FILE, index=False)
-            st.success(f"✅ Member '{selected_member}' removed successfully.")
-    else:
-        st.info("ℹ️ No members to remove.")
+
+            st.success(f"✅ Member '{selected_member}' has been removed successfully!")
+        else:
+            st.info("ℹ️ No members to remove.")
+
