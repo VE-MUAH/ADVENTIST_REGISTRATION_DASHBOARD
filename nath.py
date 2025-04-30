@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -7,9 +8,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 import sqlite3
-
-# ---- Page Setup ----
-st.set_page_config(page_title="Adventist Church Membership Registration System", layout="centered")
 
 # ---- Settings ----
 ADMIN_PASSWORD = "Akwasiwusu"
@@ -60,6 +58,7 @@ def create_table():
     cursor.execute('''CREATE TABLE IF NOT EXISTS members (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         name TEXT,
+                        student_id TEXT,
                         index_number TEXT,
                         phone TEXT,
                         residence TEXT,
@@ -77,9 +76,9 @@ create_table()
 def add_member_to_sqlite(member):
     conn = sqlite3.connect(DATABASE_SQLITE)
     cursor = conn.cursor()
-    cursor.execute('''INSERT INTO members (name, index_number, phone, residence, gmail, course, level, timestamp) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
-                   (member["Name"], member["Index Number"], member["Phone Number"], 
+    cursor.execute('''INSERT INTO members (name, student_id, index_number, phone, residence, gmail, course, level, timestamp) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                   (member["Name"], member["Student ID"], member["Index Number"], member["Phone Number"], 
                     member["Residence"], member["Gmail"], member["Course"], member["Level"], member["Timestamp"]))
     conn.commit()
     conn.close()
@@ -91,32 +90,13 @@ def load_members_from_sqlite():
     cursor.execute("SELECT * FROM members")
     members = cursor.fetchall()
     conn.close()
-
-    # Ensure the data has the same number of columns
-    if members:
-        return members
-    return []
+    return members
 
 # ---- Load Existing Members from CSV ----
 if os.path.exists(DATABASE_FILE):
-    try:
-        df_members = pd.read_csv(DATABASE_FILE)
-        # Ensure that columns match what we expect
-        expected_columns = ["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"]
-        actual_columns = df_members.columns.tolist()
-
-        if len(actual_columns) == 9:  # If there are 9 columns, add the 'ID' column or other missing column to fix the issue
-            df_members['ID'] = range(1, len(df_members) + 1)  # Adding the ID column
-        elif len(actual_columns) != 9:
-            st.warning(f"⚠️ Data columns mismatch: Expected 9, but found {len(actual_columns)} columns.")
-        if df_members.empty:
-            df_members = pd.DataFrame(columns=expected_columns)
-    except pd.errors.EmptyDataError:
-        expected_columns = ["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"]
-        df_members = pd.DataFrame(columns=expected_columns)
+    df_members = pd.read_csv(DATABASE_FILE)
 else:
-    expected_columns = ["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"]
-    df_members = pd.DataFrame(columns=expected_columns)
+    df_members = pd.DataFrame(columns=["Name", "Student ID", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
 # ---- Session Setup ----
 if 'members' not in st.session_state:
@@ -124,6 +104,13 @@ if 'members' not in st.session_state:
 
 if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
+
+# ---- Page Setup ----
+st.set_page_config(page_title="Adventist Church Membership Registration System", layout="centered")
+
+# Logo and Title
+st.image("LOGO.jpg", width=800)
+st.title("⛪ Adventist Church Membership Registration System")
 
 # ---- Sidebar for Admin Login ----
 with st.sidebar:
@@ -144,6 +131,7 @@ with col2:
     st.markdown("### 📝 Register Here")
     with st.form("member_form"):
         name = st.text_input("Full Name")
+        student_id = st.text_input("Student ID")
         index_number = st.text_input("Index Number")
         phone = st.text_input("Phone Number")
         residence = st.text_input("Place of Residence")
@@ -156,7 +144,7 @@ with col2:
         registered_gmails = [m['Gmail'] for m in st.session_state.members]
 
         if submitted:
-            if not all([name, index_number, phone, residence, gmail, course, level]):
+            if not all([name, student_id, index_number, phone, residence, gmail, course, level]):
                 st.warning("⚠️ Please complete all fields.")
             elif gmail in registered_gmails:
                 st.error("🔁 You have already registered with this Gmail.")
@@ -164,6 +152,7 @@ with col2:
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 new_member = {
                     "Name": name,
+                    "Student ID": student_id,
                     "Index Number": index_number,
                     "Phone Number": phone,
                     "Residence": residence,
@@ -195,8 +184,7 @@ if st.session_state.is_admin:
     members_from_sqlite = load_members_from_sqlite()
 
     if members_from_sqlite:
-        # Now we handle the correct number of columns
-        df = pd.DataFrame(members_from_sqlite, columns=["ID", "Name",  "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+        df = pd.DataFrame(members_from_sqlite, columns=["ID", "Name", "Student ID", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
         search_query = st.text_input("🔍 Search Members", "")
         if search_query:
@@ -236,16 +224,30 @@ if st.session_state.is_admin:
     else:
         st.info("ℹ️ No members have registered yet.")
 
-    # --- Remove Member Section --- 
-    st.subheader("❌ Remove Member")
-    remove_member_name = st.text_input("Enter the Name of the Member to Remove")
-    if st.button("Remove Member"):
-        df_filtered = df[df['Name'] != remove_member_name]
-        updated_members = df_filtered.to_dict('records')
+    # --- Remove Member Section ---
+    st.markdown("---")
+    st.subheader("🗑️ Remove a Member")
 
-        # Update members
-        st.session_state.members = updated_members
-        updated_df = pd.DataFrame(updated_members)
-        updated_df.to_csv(DATABASE_FILE, index=False)
-        add_member_to_sqlite(updated_members)
-        st.success(f"✅ Member {remove_member_name} has been removed.")
+    if st.session_state.members:
+        remove_by = st.selectbox("Select how to remove", ["Name", "Gmail"])
+
+        if remove_by == "Name":
+            member_names = [member["Name"] for member in st.session_state.members]
+            selected_member = st.selectbox("Select Member by Name", member_names)
+        elif remove_by == "Gmail":
+            member_gmails = [member["Gmail"] for member in st.session_state.members]
+            selected_member = st.selectbox("Select Member by Gmail", member_gmails)
+
+        if st.button("Remove Selected Member"):
+            new_members = []
+            for member in st.session_state.members:
+                if (remove_by == "Name" and member["Name"] != selected_member) or \
+                   (remove_by == "Gmail" and member["Gmail"] != selected_member):
+                    new_members.append(member)
+            st.session_state.members = new_members
+            st.success(f"✅ Member '{selected_member}' has been removed successfully.")
+    else:
+        st.info("ℹ️ No members to remove.")
+     
+
+
