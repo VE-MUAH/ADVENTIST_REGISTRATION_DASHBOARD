@@ -54,7 +54,7 @@ def create_table():
     conn = sqlite3.connect(DATABASE_SQLITE)
     cursor = conn.cursor()
     cursor.execute('''CREATE TABLE IF NOT EXISTS members (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                     
                         name TEXT,
                         index_number TEXT,
                         phone TEXT,
