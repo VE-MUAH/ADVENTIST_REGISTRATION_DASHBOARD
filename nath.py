@@ -174,7 +174,7 @@ if st.session_state.is_admin:
     print(members_from_sqlite) 
 
     if members_from_sqlite:
-        df = pd.DataFrame(members_from_sqlite, columns=["ID", "Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
+        df = pd.DataFrame(members_from_sqlite, columns=["Name", "Index Number", "Phone Number", "Residence", "Gmail", "Course", "Level", "Timestamp"])
 
         search_query = st.text_input("🔍 Search Members", "")
         if search_query:
